@@ -20,8 +20,10 @@ class Statistic {
             step.nearestDistance = nearest.distance;
         }
 
+        let sumDistance = 0;
         clasters.forEach(function (claster) {
-            let items = [];
+            const items = [];
+            const marks = [];
 
             if (!!nearest && !!step.nearest) {
                 if (nearest.c1 === claster || nearest.c2 === claster) {
@@ -29,10 +31,22 @@ class Statistic {
                 }
             }
             claster.items.forEach(function (item) {
-                items.push(item.values)
+                items.push(item.values.join(""));
+                if (item.mark) {
+                    marks.push(item.mark);
+                }
             });
-            step.clasters.push({items: items});
+            const result = {
+                items,
+                innerDistance: claster.innerDistance()
+            };
+            sumDistance += result.innerDistance;
+            if (marks.length == items.length) {
+                result.marks = marks;
+            }
+            step.clasters.push(result);
         });
+        step.sumDistance = sumDistance;
         this.steps.push(step);
     }
 
@@ -41,7 +55,11 @@ class Statistic {
     }
 
     result() {
-        return JSON.stringify(this.steps[this.steps.length-1], null, 4);
+        return JSON.stringify(this.resultObj(), null, 4);
+    }
+
+    resultObj() {
+        return this.steps[this.steps.length-1];
     }
 
 }
@@ -49,7 +67,7 @@ class Statistic {
 class Algorithm {
 
     static clasterize(items, limit) {
-        let clasters = new Set();
+        const clasters = new Set();
         const statistic = new Statistic();
 
         items.forEach(function (item) {
@@ -58,9 +76,8 @@ class Algorithm {
             clasters.add(claster);
         });
 
-        while (clasters.size > limit) {
-
-            let nearest = Algorithm.nearestClasters(clasters);
+        while (clasters.size > limit && clasters.size > 1) {
+            const nearest = Algorithm.nearestClasters(clasters);
             statistic.addStep(clasters, nearest);
             clasters.delete(nearest.c1);
             clasters.delete(nearest.c2);
@@ -108,16 +125,27 @@ class Claster {
     }
 
     addItems(items) {
-        const self = this; //Todo try to remove self;
-        items.forEach(function (item) {
-            self.addItem(item);
-        });
+        items.forEach((item) => {
+            this.addItem(item);
+        }, this);
     }
 
     addItem(item) {
         if (!(item instanceof Item)) throw new TypeError("item have to be instance of Item");
 
         this.items.add(item);
+    }
+
+    innerDistance() {
+        let distance = -Infinity;
+
+        this.items.forEach(function (myItem, i, items) {
+            items.forEach(function (otherItem, j) {
+                distance = Math.max(distance, myItem.distanceToItem(otherItem));
+            });
+        });
+
+        return distance;
     }
 
     distanceToClaster(claster) {
@@ -141,8 +169,9 @@ class Claster {
 }
 
 class Item {
-    constructor(values) {
+    constructor(values, mark = "") {
         this.values = values || [];
+        this.mark = mark;
         this.distanceToItem = this.distanceToItem.bind(this);
     }
 
@@ -155,7 +184,8 @@ class Item {
         }
         return distance;
     }
+
 }
 
 
-module.exports = {Claster: Claster, Item: Item, Algorithm: Algorithm, Statistic: Statistic};
+module.exports = {Claster, Item, Algorithm, Statistic};

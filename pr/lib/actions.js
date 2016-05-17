@@ -4,10 +4,10 @@
  */
 "use strict";
 
+require("colors");
 const fs = require("fs");
-const color = require("colors");
 const lib = require("./algorithm");
-
+const server = require('./server');
 
 const config = {
     itemsPath: "./items"
@@ -35,10 +35,8 @@ class App {
         return items;
     }
 
-    static parseItems(items) {
-        return items.map(function (item) {
-            return new lib.Item(item.split(""));
-        });
+    static parseItems(items, marks = []) {
+        return items.map((item, i) => new lib.Item(item.split(""), marks[i]));
     }
 }
 
@@ -185,7 +183,14 @@ class Commands {
         } catch (e) {
             console.warn("Item".yellow, itemName.toString().red, "not found".yellow);
         }
+    }
 
+    static runserver(args) {
+        const serverConfig = require('../server_config.json');
+        server.start(serverConfig, App)
+          .then((port) => {
+              console.log(`Server started on port ${port}`.green);
+          });
     }
 }
 
